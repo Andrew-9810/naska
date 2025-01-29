@@ -2,6 +2,7 @@ from PySide6 import QtGui, QtWidgets
 from data.output_data import ReadeFile
 
 CMNT_CHARACTERS = 20  # Колличесто вимволов в комментари
+# Заголовки которые берем из json
 list_header = ['name', 'surname', 'card_number', 'bib', 'year', 'comment']
 
 class MyWindow(QtWidgets.QWidget):
