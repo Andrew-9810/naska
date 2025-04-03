@@ -1,12 +1,10 @@
 import json
 
 
-class ReadeFile:
+class ActionFile:
     def __init__(self, file):
         self.file = file
-        self.read_file()
         self.data = {}
-
 
     def read_file(self):
         with open(self.file, "r") as read_file:
@@ -17,3 +15,49 @@ class ReadeFile:
         with open(self.file, 'w') as outfile:
             json.dump(self.data, outfile)
 
+    def get_group_list(self)-> list:
+        """Получение списка групп."""
+        group_list = []
+        for i in self.data['races'][0]['groups']:
+            group = {'uuid': i['id'],'name': i['name']}
+            group_list.append(group)
+        return group_list
+
+    def get_person_list(self)-> list:
+        """Получение списка участников."""
+        person_list = []
+        for i in self.data['races'][0]['persons']:
+            person_list.append(i['name'])
+        return person_list
+
+    def get_team_list(self)-> list:
+        """Получение списка коллетивов."""
+        # Научиться читать произвольное кол-во аргументов
+        # Т.е чтоб на вход принимать имя, ид и была возможность возращать список с этими полями
+        team_list = []
+        for i in self.data['races'][0]['organizations']:
+            team = {'uuid': i['id'],'name': i['name']}
+            team_list.append(team)
+
+        # def my_f():
+        #     my_dict = {}
+        #     key = ['id', 'name']
+        #     value = {'id': '1', 'kt': '2', 'name': '3'}
+        #     for i in key:
+        #         my_dict[i] = value[i]
+        #     return my_dict
+        #
+        # print(my_f())
+        return team_list
+
+    def get_group_dict(self)-> dict:
+        """Получение словаря групп."""
+        return self.data['races'][0]['groups']
+
+    def get_person_dict(self)-> dict:
+        """Получение словаря участников."""
+        return self.data['races'][0]['persons']
+
+    def get_team_dict(self)-> dict:
+        """Получение словаря коллективов."""
+        return self.data['races'][0]['organizations']
