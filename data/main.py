@@ -1,54 +1,57 @@
 import sys
+from pathlib import Path
+
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from data.output_data import ActionFile
 
 
 CMNT_CHARACTERS = 20  # Колличесто символов в комментари
-# Заголовки которые берем из json
+# Заголовки, которые берем из json
 list_header = [
-    'uuid', 'name', 'surname', 'card_number', 'bib', 'year', 'comment'
+    'uuid', 'surname', 'name', 'year', 'qual', 'card_number', 'bib', 'comment'
 ]
+list_header_gr = [
+    'uuid', 'name', 'price1', 'price2', 'price3'
+]
+FILE = ''
 
-class SettingsFile:
-    """Управление файлом."""
-    pass
+class CommonClass:
+    def __init__(self):
+        self.sti = QtGui.QStandardItemModel()
+        self.tv = QtWidgets.QTableView()
 
-class Person:
+    def uuid_name(self, get_file) ->dict:
+        """Словарь, uuid: name."""
+        id_name = {}
+        for d in get_file:
+            key = d['uuid']
+            value = d['name']
+            id_name[key] = value
+        return id_name
+
+    def cell_changed(self, item, uuid, header, get_data):
+        """Запись в файл при изменении."""
+        for i in get_data:
+            if i['id'] == uuid.data():
+                i[header[item.column()]] = item.text()
+                self.file.writer_file()
+
+class Person(CommonClass):
     """Участник."""
-    def __init__(self, file):
+    def __init__(self, file, file_price):
+        super().__init__()
         self.file = file
         self.data_dict = file.get_person_dict()
-        self.group_list = self.uuid_name_group()
-        self.team_list = self.uuid_name_team()
-        self.tv_person = QtWidgets.QTableView()
-        self.sti_person = QtGui.QStandardItemModel()
-        self.sti_person.itemChanged.connect(self.cell_changed)
-
-
-    def uuid_name_group(self) ->dict:
-        """Словарь групп, uuid: name."""
-        group_id_name = {}
-        for dict_group in self.file.get_group_list():
-            key = dict_group['uuid']
-            value = dict_group['name']
-            group_id_name[key] = value
-        return group_id_name
-
-    def uuid_name_team(self) ->dict:
-        """Словарь групп, uuid: name."""
-        team_id_name = {}
-        for dict_team in self.file.get_team_list():
-            key = dict_team['uuid']
-            value = dict_team['name']
-            team_id_name[key] = value
-        return team_id_name
-
+        self.group_list = self.uuid_name(self.file.get_group_list())
+        self.team_list = self.uuid_name(self.file.get_team_list())
+        self.sti.itemChanged.connect(self.cell_changed_person)
+        self.file_price = file_price
 
     def load_person(self, group_filter='all', team_filter='all', start_day=1,
-                    chip=True, compas=True):
+        chip=True, compas=True):
         """Загрузка участников."""
-        self.sti_person.clear()
+        self.sti.clear()
         # Заголовки
         headers = [
             'id',
@@ -57,6 +60,7 @@ class Person:
             '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'
         ]
+        person_dict = {}
 
         for i in self.data_dict:
             try:
@@ -98,39 +102,48 @@ class Person:
                         continue
             except KeyError:
                 continue
-            id_person = QtGui.QStandardItem(str(i['id']))
-            name = QtGui.QStandardItem(str(i['name']))
-            surname = QtGui.QStandardItem(str(i['surname']))
-            card_number = QtGui.QStandardItem(str(i['card_number']))
-            bib = QtGui.QStandardItem(str(i['bib']))
-            year = QtGui.QStandardItem(str(i['year']))
-            qual = QtGui.QStandardItem(str(i['qual']))
+            person_dict['id_person'] = QtGui.QStandardItem(str(i['id']))
+            person_dict['name'] = QtGui.QStandardItem(str(i['name']))
+            person_dict['surname'] = QtGui.QStandardItem(str(i['surname']))
+            person_dict['card_number'] = QtGui.QStandardItem(str(i['card_number']))
+            person_dict['bib'] = QtGui.QStandardItem(str(i['bib']))
+            person_dict['year'] = QtGui.QStandardItem(str(i['year']))
+            person_dict['qual'] = QtGui.QStandardItem(str(i['qual']))
+            person_dict['organization'] = organization
+            person_dict['group'] = group
 
-            person = [
-                id_person, surname, name, year, qual, card_number, bib,
-                 group, organization
-            ]
             # Разбиваю комментарий на 20 символов, WO дает 20
             comment = list(i['comment'])
-            running_day = 0
             for index in range(CMNT_CHARACTERS):
-                # Выясняю сколько дней бежит участник
-                if index in [3, 4, 5, 6, 7, 8]:
-                    if comment[index] != '-':
-                        running_day += 1
                 try:
-                    person.append(QtGui.QStandardItem(str(comment[index])))
+                    comm = str(comment[index])
                 except IndexError:
-                    person.append(QtGui.QStandardItem(' '))
+                    comm = ' '
+                person_dict[f'comment{index}'] = QtGui.QStandardItem(comm)
+
             # Взнос
-            summ: int = 0
+            summ = 0
+            # Цена за день относительно категории цены
+            if person_dict[f'comment1'].text() == '1':
+                price_cat = 'price1'
+            elif person_dict[f'comment1'].text() == '2':
+                price_cat = 'price2'
+            elif person_dict[f'comment1'].text() == '3':
+                price_cat = 'price3'
+            else: # Залогируй ошибку
+                price_cat = 'price3'
 
-            # Дни старта
-            for _ in range(start_day):
-                price_day = 222 # Должен быть запрос к таблице с группой
+            price_day = int(self.file_price.data[i['group_id']][price_cat])
 
-                summ += price_day
-                person.append(QtGui.QStandardItem(str(price_day)))
+            step_comm_day = 2 # Шаг между значением текущего дня и индексом комментария
+
+            for day in range(1, start_day + 1):
+                if person_dict[f'comment{day + step_comm_day}'].text() != '-':
+                    summ += price_day
+                    data = price_day
+                else:
+                    data = ' '
+                person_dict[f'price_day{day}'] = QtGui.QStandardItem(str(data))
 
                 """
                 Здесь цена за 1 день ориентируется на:
@@ -140,75 +153,148 @@ class Person:
                 """
             # Чип, Компас
             if chip:
-                price_chip = 88
-                summ += price_chip
-                person.append(QtGui.QStandardItem(str(price_chip)))
+                chip_b = 200 # Берем из файла с чипами
+                chip_k = 150
+
+                if person_dict[f'comment9'].text() != ' ':
+                    day_chip = int(person_dict[f'comment9'].text())
+                    if person_dict['card_number'].text()[:1] == '8':
+                        price_chip = chip_b
+                    else:
+                        price_chip = chip_k
+                    summ_chip = day_chip * price_chip
+                    summ += summ_chip
+                else:
+                    summ_chip = ' '
+                person_dict['chip'] = QtGui.QStandardItem(str(summ_chip))
             if compas:
                 price_compas = 5
-                summ += price_compas
-                person.append(QtGui.QStandardItem(str(price_compas)))
+                if person_dict[f'comment10'].text() != ' ':
+                    day_compas = int(person_dict[f'comment10'].text())
+                    summ_compas = day_compas * price_compas
+                    summ += summ_compas
+                else:
+                    summ_compas = ' '
+                person_dict['compas'] = QtGui.QStandardItem(str(summ_compas))
+            person_dict['summ'] = QtGui.QStandardItem(f'{summ}')
 
-            person.append(QtGui.QStandardItem(f'{summ}'))
-            self.sti_person.appendRow(person)
+            person = [
+                person_dict['id_person'],
+                person_dict['surname'],
+                person_dict['name'],
+                person_dict['year'],
+                person_dict['qual'],
+                person_dict['card_number'],
+                person_dict['bib'],
+                person_dict['group'],
+                person_dict['organization']
+            ]
 
+            for index in range(CMNT_CHARACTERS):
+                person.append(person_dict[f'comment{index}'])
+            if chip:
+                person.append(person_dict['chip'])
+            if compas:
+                person.append(person_dict['compas'])
+            for day in range(1, start_day+1):
+                person.append(person_dict[f'price_day{day}'])
+            person.append(person_dict['summ'])
+            self.sti.appendRow(person)
 
-        for day in range(start_day):
-            headers.append(f'{day + 1}день')
         # Чип, Компас
         if chip:
             headers.append('ЧИП')
         if compas:
             headers.append('Компас')
+        for day in range(start_day):
+            headers.append(f'{day + 1}день')
         headers.append('ИТОГО')
-        self.sti_person.setHorizontalHeaderLabels(headers)
-        self.tv_person.setModel(self.sti_person)
+        self.sti.setHorizontalHeaderLabels(headers)
+        self.tv.setModel(self.sti)
         # Сортировка по столбцу
-        self.tv_person.setSortingEnabled(True)
+        self.tv.setSortingEnabled(True)
 
         # Ширина заголовков при комментарии
         st_comment = 9
         end_comment = 29
         for i in range(st_comment, end_comment):
-            self.tv_person.setColumnWidth(i, 1)
-        self.tv_person.setColumnWidth(0, 0)
-        return self.tv_person
+            self.tv.setColumnWidth(i, 1)
+        self.tv.setColumnWidth(0, 0)
+        return self.tv
 
-    def cell_changed(self, item):
-        """Запись в файл при изменении."""
+    def cell_changed_person(self, item):
         colum_uuid = 0
-        person_uuid = self.sti_person.index(item.row(), colum_uuid)
+        uuid = self.sti.index(item.row(), colum_uuid)
+        header = list_header
+        get_data = self.file.get_person_dict()
+        CommonClass.cell_changed(self, item, uuid, header, get_data)
 
-        for i in self.file.get_person_dict():
-            if i['id'] == person_uuid.data():
-                i[list_header[item.column()]] = item.text()
-                self.file.writer_file()
-
-
-class Group:
-    def __init__(self, file):
+class Group(CommonClass):
+    def __init__(self, file, file_price):
+        super().__init__()
         self.file = file
         self.data_list = file.get_group_dict()
-        self.tv_group = QtWidgets.QTableView()
-        self.sti_group = QtGui.QStandardItemModel()
+        self.file_price = file_price
+
+        self.group_dict = {}
+        self.sti.itemChanged.connect(self.cell_changed_group)
 
     def load_group(self):
         """Загрузка групп."""
         for i in self.data_list:
             id_group = QtGui.QStandardItem(str(i['id']))
             name_group = QtGui.QStandardItem(str(i['name']))
-            price_group = QtGui.QStandardItem(str(0))
-            group_lst = [id_group, name_group, price_group]
-            self.sti_group.appendRow(group_lst)
-        self.sti_group.setHorizontalHeaderLabels(['id', 'Группа', 'Цена'])
-        self.tv_group.setModel(self.sti_group)
-        return self.tv_group
+            if self.file_price.check_is_nan():
+                self.group_dict[str(i['id'])] = {
+                    'name': str(i['name']),
+                    'price1': str(0),
+                    'price2': str(0),
+                    'price3': str(0),
+                }
+                price_group1 = QtGui.QStandardItem(str(0))
+                price_group2 = QtGui.QStandardItem(str(0))
+                price_group3 = QtGui.QStandardItem(str(0))
+            else:
+                p1 = self.file_price.data[str(i['id'])]['price1']
+                p2 = self.file_price.data[str(i['id'])]['price2']
+                p3 = self.file_price.data[str(i['id'])]['price3']
+                price_group1 = QtGui.QStandardItem(p1)
+                price_group2 = QtGui.QStandardItem(p2)
+                price_group3 = QtGui.QStandardItem(p3)
+            group_lst = [
+                id_group, name_group, price_group1, price_group2, price_group3
+            ]
+            self.sti.appendRow(group_lst)
 
-class Team:
+        if self.file_price.check_is_nan():
+            self.file_price.data = self.group_dict
+            self.file_price.writer_file()
+
+        self.sti.setHorizontalHeaderLabels(
+            ['id', 'Группа', 'Цена1', 'Цена2', 'Цена3']
+        )
+        self.tv.setModel(self.sti)
+        return self.tv
+
+    def cell_changed_group(self, item):
+        """Запись в файл при изменении."""
+        colum_uuid = 0
+        uuid = self.sti.index(item.row(), colum_uuid)
+        header = list_header_gr
+        get_data = self.file.get_group_dict()
+        if item.column() == 1:
+            CommonClass.cell_changed(self, item, uuid, header, get_data)
+        elif item.column() in [2, 3, 4]:
+            self.file_price.data[uuid.data()][header[item.column()]] = item.text()
+            self.file_price.writer_file()
+
+
+class Team(CommonClass):
     def __init__(self, file):
+        super().__init__()
         self.file = file
         self.data_list = file.get_team_dict()
-        self.tv_teams = QtWidgets.QTableView()
-        self.sti_teams = QtGui.QStandardItemModel()
+
 
     def load_teams(self):
         """Загрузка коллективов."""
@@ -216,26 +302,76 @@ class Team:
             name_teams = QtGui.QStandardItem(str(i['name']))
             price_teams = QtGui.QStandardItem(str(0))
             teams_lst = [name_teams, price_teams]
-            self.sti_teams.setHorizontalHeaderLabels(['Коллектив', 'Цена'])
-            self.sti_teams.appendRow(teams_lst)
-        self.tv_teams.setModel(self.sti_teams)
-        return self.tv_teams
+            self.sti.setHorizontalHeaderLabels(['Коллектив', 'Цена'])
+            self.sti.appendRow(teams_lst)
+        self.tv.setModel(self.sti)
+        return self.tv
+
+
+class Settings(CommonClass):
+    def __init__(self, file_sett):
+        super().__init__()
+        self.file_sett = file_sett
+        self.sett = {}
+
+    def load(self):
+        """Загрузка льгот."""
+        if self.file_sett.check_is_nan():
+            self.sett['position'] = {
+                'symbol': {'description': 'bla', 'price': 123}
+            }
+            description = QtGui.QStandardItem(str(0))
+            symbol = QtGui.QStandardItem(str(0))
+            position = QtGui.QStandardItem(str(0))
+            price = QtGui.QStandardItem(str(0))
+        else: # Считать из файла
+            description = QtGui.QStandardItem(str(0))
+            symbol = QtGui.QStandardItem(str(0))
+            position = QtGui.QStandardItem(str(0))
+            price = QtGui.QStandardItem(str(0))
+        lst = [
+            description, symbol, position, price
+        ]
+        self.sti.appendRow(lst)
+
+        if self.file_sett.check_is_nan():
+            self.file_sett.data = self.sett
+            self.file_sett.writer_file()
+
+        self.sti.setHorizontalHeaderLabels(
+            ['Описание', 'Символ', 'Позиция', 'Цена']
+        )
+        self.tv.setModel(self.sti)
+        return self.tv
 
 
 class MyWindow(QtWidgets.QMainWindow):
     """Элементы главного окна."""
     def __init__(self):
         super().__init__()
+
         self.day = 3
-        self.chip = True
-        self.compas = True
-        self.file = ActionFile('20241020.json')
+        self.chip = False
+        self.compas = False
+
+        self.file = ActionFile(f'{FILE}')
         self.file.read_file()
+
+        self.file_price = ActionFile(
+            f'{Path(FILE).name.split('.')[0]}price.json'
+        )
+        self.file_price.read_file()
+
+        self.file_sett = ActionFile(
+            f'{Path(FILE).name.split('.')[0]}sett.json'
+        )
+        self.file_sett.read_file()
 
         self.centralwidget = QtWidgets.QWidget()
         self.setCentralWidget(self.centralwidget)
 
         self.group_dock = QtWidgets.QDockWidget()
+        self.group_dock.setWindowTitle('Группа')
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.group_dock)
         self.group_dock_wid = QtWidgets.QComboBox()
         self.group_dock.setWidget(self.group_dock_wid)
@@ -245,6 +381,7 @@ class MyWindow(QtWidgets.QMainWindow):
         self.group_dock_wid.activated.connect(self.filter)
 
         self.team_dock = QtWidgets.QDockWidget()
+        self.team_dock.setWindowTitle('Коллектив')
         self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.team_dock)
         self.team_dock_wid = QtWidgets.QComboBox()
         self.team_dock.setWidget(self.team_dock_wid)
@@ -253,14 +390,16 @@ class MyWindow(QtWidgets.QMainWindow):
             self.team_dock_wid.addItem(i['name'], i['uuid'])
         self.team_dock_wid.activated.connect(self.filter)
 
-        self.person = Person(self.file)
-        self.group = Group(self.file)
+        self.person = Person(self.file, self.file_price)
+        self.group = Group(self.file, self.file_price)
         self.team = Team(self.file)
+        self.settings = Settings(self.file_sett)
 
         self.tabWidget = QtWidgets.QTabWidget()
+        self.tabWidget.insertTab(0, QtWidgets.QWidget(), '&Person')
         self.tabWidget.insertTab(1, self.group.load_group(), '&Group')
         self.tabWidget.insertTab(2, self.team.load_teams(), '&Teams')
-        self.tabWidget.insertTab(3, QtWidgets.QLabel('Льгота'), 'Льгота')
+        self.tabWidget.insertTab(3, self.settings.load(), '&Settings')
         self.tabWidget.setMovable(True)
         self.layout = QtWidgets.QGridLayout(self.centralwidget)
         self.layout.addWidget(self.tabWidget)
@@ -281,12 +420,61 @@ class MyWindow(QtWidgets.QMainWindow):
         self.tabWidget.setCurrentIndex(0)
 
 
+class PriceGroup(QtWidgets.QMainWindow):
+    """Получение цены группы."""
+    def __init__(self):
+        super().__init__()
+        fname = QtWidgets.QDialog()
+        self.file = ActionFile(f'{FILE}')
+        self.file.read_file()
+
+        self.group = Group(self.file)
+
+        self.tabWidget = QtWidgets.QTabWidget()
+
+        self.centralwidget = QtWidgets.QWidget()
+        self.setCentralWidget(self.centralwidget)
+
+        self.tabWidget.insertTab(1, self.group.load_group(), '&Group')
+        self.tabWidget.insertTab(3, QtWidgets.QLabel('Льгота'), 'Льгота')
+        self.tabWidget.setMovable(True)
+        self.btx = QtWidgets.QPushButton("OK")
+        self.btx.clicked.connect(self.run)
+
+        self.layout = QtWidgets.QGridLayout(self.centralwidget)
+        self.layout.addWidget(self.tabWidget)
+        self.layout.addWidget(self.btx)
+
+    def run(self):
+        self.close()
+
+
+
+class SelectFile(QtWidgets.QMainWindow):
+    """Выбор файла с базой."""
+    def __init__(self):
+        super().__init__()
+        fname = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Open File",
+            f"{Path().cwd()}",
+            "All Files (*)",
+        )
+        global FILE
+        FILE = fname[0]
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     app.setFont(QtGui.QFont('Times', 12, QtGui.QFont.Bold))
+    dialog = SelectFile()
+    dialog.show()
+    dialog.close()
+    # group = PriceGroup()
+    # group.show()
+
     win = MyWindow()
     win.setWindowTitle('Сбор стартового взноса')
-    win.resize(800, 600)
+    win.resize(1000, 800)
     win.show()
     sys.exit(app.exec_())
