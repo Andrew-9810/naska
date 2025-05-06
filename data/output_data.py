@@ -59,7 +59,7 @@ class ActionFile:
         return self.data['races'][0]['organizations']
 
     def check_is_nan(self):
-        """Проверка на пустоту."""
+        """Проверка на пустоту. True -> Пустой."""
         if self.data:
             return False
         else:

@@ -8,8 +8,14 @@ from data.output_data import ActionFile
 
 CMNT_CHARACTERS = 20  # Колличесто символов в комментари
 # Заголовки, которые берем из json
+QUAL = {
+    0: 'б/р', '': 'б/р', ' ': 'б/р',
+    1: 'I', 2: 'II', 3: 'III', 4: 'Iю', 5: 'IIю', 6: 'IIIю', 7: 'КМС',
+    8: 'МС', 9: 'ЗМС'
+}
 list_header = [
-    'uuid', 'surname', 'name', 'year', 'qual', 'card_number', 'bib', 'comment'
+    'id', 'surname', 'name', 'year', 'qual', 'card_number', 'bib',
+    'group_id', 'organization_id', 'comment'
 ]
 list_header_gr = [
     'uuid', 'name', 'price1', 'price2', 'price3'
@@ -20,13 +26,14 @@ class CommonClass:
     def __init__(self):
         self.sti = QtGui.QStandardItemModel()
         self.tv = QtWidgets.QTableView()
+        self.tv.setAlternatingRowColors(True)
 
     def uuid_name(self, get_file) ->dict:
         """Словарь, uuid: name."""
         id_name = {}
-        for d in get_file:
-            key = d['uuid']
-            value = d['name']
+        for data in get_file:
+            key = data['uuid']
+            value = data['name']
             id_name[key] = value
         return id_name
 
@@ -34,7 +41,7 @@ class CommonClass:
         """Запись в файл при изменении."""
         for i in get_data:
             if i['id'] == uuid.data():
-                i[header[item.column()]] = item.text()
+                i[header[item.column()]] = item.data()
                 self.file.writer_file()
 
 class Person(CommonClass):
@@ -46,7 +53,29 @@ class Person(CommonClass):
         self.group_list = self.uuid_name(self.file.get_group_list())
         self.team_list = self.uuid_name(self.file.get_team_list())
         self.sti.itemChanged.connect(self.cell_changed_person)
+        self.tv.doubleClicked.connect(self.changing_dynamic_fields)
         self.file_price = file_price
+
+    def changing_dynamic_fields(self):
+        # Получить позицию в листе заголовков
+        if self.tv.currentIndex().column() == 4:
+            parent = win.qual_dock
+            win.qual_dock_wid.setEnabled(True)
+        elif self.tv.currentIndex().column() == 7:
+            parent = win.group_dock
+        elif self.tv.currentIndex().column() == 8:
+            parent = win.team_dock
+        else:
+            return None
+
+        win.edit = 1
+        parent.setStyleSheet(win.CSS1)
+        # Блокировка
+        for i in range(1, 4): # Индекс вкладок
+            win.tabWidget.setTabEnabled(i, False)
+        win.tabWidget.setTabEnabled(0, False)
+
+
 
     def load_person(self, group_filter='all', team_filter='all', start_day=1,
         chip=True, compas=True):
@@ -102,15 +131,23 @@ class Person(CommonClass):
                         continue
             except KeyError:
                 continue
-            person_dict['id_person'] = QtGui.QStandardItem(str(i['id']))
-            person_dict['name'] = QtGui.QStandardItem(str(i['name']))
-            person_dict['surname'] = QtGui.QStandardItem(str(i['surname']))
-            person_dict['card_number'] = QtGui.QStandardItem(str(i['card_number']))
-            person_dict['bib'] = QtGui.QStandardItem(str(i['bib']))
-            person_dict['year'] = QtGui.QStandardItem(str(i['year']))
-            person_dict['qual'] = QtGui.QStandardItem(str(i['qual']))
-            person_dict['organization'] = organization
-            person_dict['group'] = group
+
+            for head in list_header[0:9]:
+                if head == 'qual':
+                    text = QUAL[i[head]]
+                    data = str(i[head])
+                elif head == 'group_id':
+                    text = group
+                    data = str(i[head])
+                elif head == 'organization_id':
+                    text = organization
+                    data = str(i[head])
+                else:
+                    text = str(i[head])
+                    data = text
+                person_dict[head] = QtGui.QStandardItem(text)
+                person_dict[head].setData(data)
+
 
             # Разбиваю комментарий на 20 символов, WO дает 20
             comment = list(i['comment'])
@@ -178,17 +215,9 @@ class Person(CommonClass):
                 person_dict['compas'] = QtGui.QStandardItem(str(summ_compas))
             person_dict['summ'] = QtGui.QStandardItem(f'{summ}')
 
-            person = [
-                person_dict['id_person'],
-                person_dict['surname'],
-                person_dict['name'],
-                person_dict['year'],
-                person_dict['qual'],
-                person_dict['card_number'],
-                person_dict['bib'],
-                person_dict['group'],
-                person_dict['organization']
-            ]
+            person = []
+            for head in list_header[0:9]:
+                person.append(person_dict[head])
 
             for index in range(CMNT_CHARACTERS):
                 person.append(person_dict[f'comment{index}'])
@@ -227,6 +256,17 @@ class Person(CommonClass):
         uuid = self.sti.index(item.row(), colum_uuid)
         header = list_header
         get_data = self.file.get_person_dict()
+        if item.column() == 4: # Изменение Квалификации
+            item.setText(str(win.qual_dock_wid.currentText()))
+            item.setData(win.qual_dock_wid.currentData())
+        if item.column() == 7: # Изменение Группы
+            item.setText(str(win.group_dock_wid.currentText()))
+            item.setData(str(win.group_dock_wid.currentData()))
+        if item.column() == 8:  # Изменение Коллектива
+            item.setText(str(win.team_dock_wid.currentText()))
+            item.setData(str(win.team_dock_wid.currentData()))
+        if item.column() in range(9,30): # Комментарий
+            pass
         CommonClass.cell_changed(self, item, uuid, header, get_data)
 
 class Group(CommonClass):
@@ -243,7 +283,10 @@ class Group(CommonClass):
         """Загрузка групп."""
         for i in self.data_list:
             id_group = QtGui.QStandardItem(str(i['id']))
+            id_group.setData(str(i['id']))
             name_group = QtGui.QStandardItem(str(i['name']))
+            name_group.setData(str(i['name']))
+
             if self.file_price.check_is_nan():
                 self.group_dict[str(i['id'])] = {
                     'name': str(i['name']),
@@ -283,6 +326,7 @@ class Group(CommonClass):
         header = list_header_gr
         get_data = self.file.get_group_dict()
         if item.column() == 1:
+            item.setData(item.text())
             CommonClass.cell_changed(self, item, uuid, header, get_data)
         elif item.column() in [2, 3, 4]:
             self.file_price.data[uuid.data()][header[item.column()]] = item.text()
@@ -367,6 +411,22 @@ class MyWindow(QtWidgets.QMainWindow):
         )
         self.file_sett.read_file()
 
+        self.edit = 0  # 0 - не редактирование, 1 - редактирование
+
+        self.CSS1 ="""
+            QDockWidget::title {
+                text-align: center;
+                background-color: green;
+                padding: 3px;
+            }
+        """
+        self.CSS2 ="""
+            QDockWidget::title {
+                text-align: center;
+                background-color: white;
+                padding: 3px;
+            }
+        """
         self.centralwidget = QtWidgets.QWidget()
         self.setCentralWidget(self.centralwidget)
 
@@ -390,6 +450,18 @@ class MyWindow(QtWidgets.QMainWindow):
             self.team_dock_wid.addItem(i['name'], i['uuid'])
         self.team_dock_wid.activated.connect(self.filter)
 
+        self.qual_dock = QtWidgets.QDockWidget()
+        self.qual_dock.setWindowTitle('Квалл.')
+        self.addDockWidget(QtCore.Qt.TopDockWidgetArea, self.qual_dock)
+        self.qual_dock_wid = QtWidgets.QComboBox()
+        self.qual_dock.setWidget(self.qual_dock_wid)
+
+        for key in QUAL:
+            if isinstance(key, int):
+                self.qual_dock_wid.addItem(QUAL[key], key)
+        self.qual_dock_wid.setEnabled(False)
+        self.qual_dock_wid.activated.connect(self.filter)
+
         self.person = Person(self.file, self.file_price)
         self.group = Group(self.file, self.file_price)
         self.team = Team(self.file)
@@ -409,16 +481,31 @@ class MyWindow(QtWidgets.QMainWindow):
         """Фильтрация по Коллективу и Группе."""
         team = self.team_dock_wid.currentData()
         group = self.group_dock_wid.currentData()
-        self.tabWidget.removeTab(0)
+        if self.edit == 0:
+            self.tabWidget.removeTab(0)
 
-        self.tabWidget.insertTab(
-            0, self.person.load_person(
-                team_filter=team, group_filter=group, start_day=self.day,
-                chip=self.chip, compas=self.compas
-            ), '&Person'
-        )
-        self.tabWidget.setCurrentIndex(0)
-
+            self.tabWidget.insertTab(
+                0, self.person.load_person(
+                    team_filter=team, group_filter=group, start_day=self.day,
+                    chip=self.chip, compas=self.compas
+                ), '&Person'
+            )
+            self.tabWidget.setCurrentIndex(0)
+        elif self.edit == 1:
+            # Текущий элемент который меняется
+            self.person.cell_changed_person(
+                self.person.sti.itemFromIndex(self.person.tv.currentIndex())
+            )
+            self.edit = 0
+            self.group_dock.setStyleSheet(self.CSS2)
+            self.team_dock.setStyleSheet(self.CSS2)
+            self.qual_dock.setStyleSheet(self.CSS2)
+            # Разблокировка
+            for i in range(0,4):
+                self.tabWidget.setTabEnabled(i, True)
+            self.qual_dock_wid.setEnabled(False)
+        else:
+            pass
 
 class PriceGroup(QtWidgets.QMainWindow):
     """Получение цены группы."""
