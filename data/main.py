@@ -21,6 +21,39 @@ list_header_gr = [
     'uuid', 'name', 'price1', 'price2', 'price3'
 ]
 FILE = ''
+available = """
+    QDockWidget::title {
+        text-align: center;
+        background-color: green;
+        padding: 3px;
+    }
+"""
+not_available = """
+    QDockWidget::title {
+        text-align: center;
+        background-color: white;
+        padding: 3px;
+    }
+"""
+neutral = """
+    QDockWidget::title {
+        text-align: center;
+        background-color: white;
+        padding: 3px;
+    }
+"""
+
+
+class Comment:
+    """Переопределение коментария."""
+    def __init__(self, comm):
+        self.comment = comm
+
+    def data(self):
+        return str(self.comment)
+
+    def column(self):
+        return 9
 
 class CommonClass:
     def __init__(self):
@@ -57,19 +90,24 @@ class Person(CommonClass):
         self.file_price = file_price
 
     def changing_dynamic_fields(self):
+        """Изменение полей с выбором из списка."""
         # Получить позицию в листе заголовков
         if self.tv.currentIndex().column() == 4:
             parent = win.qual_dock
             win.qual_dock_wid.setEnabled(True)
+            win.group_dock_wid.setEnabled(False)
+            win.team_dock_wid.setEnabled(False)
         elif self.tv.currentIndex().column() == 7:
             parent = win.group_dock
+            win.team_dock_wid.setEnabled(False)
         elif self.tv.currentIndex().column() == 8:
             parent = win.team_dock
+            win.group_dock_wid.setEnabled(False)
         else:
             return None
 
         win.edit = 1
-        parent.setStyleSheet(win.CSS1)
+        parent.setStyleSheet(available)
         # Блокировка
         for i in range(1, 4): # Индекс вкладок
             win.tabWidget.setTabEnabled(i, False)
@@ -148,7 +186,6 @@ class Person(CommonClass):
                 person_dict[head] = QtGui.QStandardItem(text)
                 person_dict[head].setData(data)
 
-
             # Разбиваю комментарий на 20 символов, WO дает 20
             comment = list(i['comment'])
             for index in range(CMNT_CHARACTERS):
@@ -218,9 +255,10 @@ class Person(CommonClass):
             person = []
             for head in list_header[0:9]:
                 person.append(person_dict[head])
-
+            # Поля комментария
             for index in range(CMNT_CHARACTERS):
                 person.append(person_dict[f'comment{index}'])
+            # Поля чипов и компасов
             if chip:
                 person.append(person_dict['chip'])
             if compas:
@@ -230,7 +268,7 @@ class Person(CommonClass):
             person.append(person_dict['summ'])
             self.sti.appendRow(person)
 
-        # Чип, Компас
+        # Заголовки Чип, Компас
         if chip:
             headers.append('ЧИП')
         if compas:
@@ -248,6 +286,7 @@ class Person(CommonClass):
         end_comment = 29
         for i in range(st_comment, end_comment):
             self.tv.setColumnWidth(i, 1)
+        # Колонка с uuid скрыта
         self.tv.setColumnWidth(0, 0)
         return self.tv
 
@@ -265,8 +304,13 @@ class Person(CommonClass):
         if item.column() == 8:  # Изменение Коллектива
             item.setText(str(win.team_dock_wid.currentText()))
             item.setData(str(win.team_dock_wid.currentData()))
-        if item.column() in range(9,30): # Комментарий
-            pass
+        if item.column() in range(9,29): # Комментарий
+            # собрать строку и записать
+            comment = ''
+            for pos_com in range(9, 29):
+                comment += self.sti.index(item.row(), pos_com).data()
+            # Переопределяю для записи
+            item = Comment(comment)
         CommonClass.cell_changed(self, item, uuid, header, get_data)
 
 class Group(CommonClass):
@@ -413,20 +457,6 @@ class MyWindow(QtWidgets.QMainWindow):
 
         self.edit = 0  # 0 - не редактирование, 1 - редактирование
 
-        self.CSS1 ="""
-            QDockWidget::title {
-                text-align: center;
-                background-color: green;
-                padding: 3px;
-            }
-        """
-        self.CSS2 ="""
-            QDockWidget::title {
-                text-align: center;
-                background-color: white;
-                padding: 3px;
-            }
-        """
         self.centralwidget = QtWidgets.QWidget()
         self.setCentralWidget(self.centralwidget)
 
@@ -497,13 +527,15 @@ class MyWindow(QtWidgets.QMainWindow):
                 self.person.sti.itemFromIndex(self.person.tv.currentIndex())
             )
             self.edit = 0
-            self.group_dock.setStyleSheet(self.CSS2)
-            self.team_dock.setStyleSheet(self.CSS2)
-            self.qual_dock.setStyleSheet(self.CSS2)
+            self.group_dock.setStyleSheet(neutral)
+            self.team_dock.setStyleSheet(neutral)
+            self.qual_dock.setStyleSheet(neutral)
             # Разблокировка
             for i in range(0,4):
                 self.tabWidget.setTabEnabled(i, True)
             self.qual_dock_wid.setEnabled(False)
+            self.group_dock_wid.setEnabled(True)
+            self.team_dock_wid.setEnabled(True)
         else:
             pass
 
