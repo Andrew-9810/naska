@@ -319,46 +319,41 @@ class Group(CommonClass):
         self.file = file
         self.data_list = file.get_group_dict()
         self.file_price = file_price
+        if self.file_price.check_is_nan():
+            self.file_price.data = {}
 
         self.group_dict = {}
         self.sti.itemChanged.connect(self.cell_changed_group)
 
     def load_group(self):
         """Загрузка групп."""
+
         for i in self.data_list:
             id_group = QtGui.QStandardItem(str(i['id']))
             id_group.setData(str(i['id']))
             name_group = QtGui.QStandardItem(str(i['name']))
             name_group.setData(str(i['name']))
 
-            if self.file_price.check_is_nan():
-                self.group_dict[str(i['id'])] = {
-                    'name': str(i['name']),
-                    'price1': str(0),
-                    'price2': str(0),
-                    'price3': str(0),
+            if not(str(i['id']) in self.file_price.data):
+                self.file_price.data[str(i['id'])] = {
+                        'name': str(i['name']),
+                        'price1': str(0),
+                        'price2': str(0),
+                        'price3': str(0),
+                        'privilege': str(0),
+                        'ru_team': str(0),
+                        'privilege_100': str(0)
                 }
-                price_group1 = QtGui.QStandardItem(str(0))
-                price_group2 = QtGui.QStandardItem(str(0))
-                price_group3 = QtGui.QStandardItem(str(0))
-            else:
-                p1 = self.file_price.data[str(i['id'])]['price1']
-                p2 = self.file_price.data[str(i['id'])]['price2']
-                p3 = self.file_price.data[str(i['id'])]['price3']
-                price_group1 = QtGui.QStandardItem(p1)
-                price_group2 = QtGui.QStandardItem(p2)
-                price_group3 = QtGui.QStandardItem(p3)
-            group_lst = [
-                id_group, name_group, price_group1, price_group2, price_group3
-            ]
-            self.sti.appendRow(group_lst)
-
-        if self.file_price.check_is_nan():
-            self.file_price.data = self.group_dict
-            self.file_price.writer_file()
-
+            data_price = [id_group]
+            for key in self.file_price.data[str(i['id'])]:
+                data_price.append(
+                    QtGui.QStandardItem(self.file_price.data[str(i['id'])][key])
+                )
+            self.sti.appendRow(data_price)
+        self.file_price.writer_file()
         self.sti.setHorizontalHeaderLabels(
-            ['id', 'Группа', 'Цена1', 'Цена2', 'Цена3']
+            ['id', 'Группа', 'Цена1', 'Цена2', 'Цена3',
+             'Льгота(Л)', 'Сборная(С)', 'Льгота 100%(П)']
         )
         self.tv.setModel(self.sti)
         return self.tv
@@ -400,34 +395,49 @@ class Settings(CommonClass):
     def __init__(self, file_sett):
         super().__init__()
         self.file_sett = file_sett
-        self.sett = {}
+
 
     def load(self):
         """Загрузка льгот."""
         if self.file_sett.check_is_nan():
-            self.sett['position'] = {
-                'symbol': {'description': 'bla', 'price': 123}
+            self.file_sett.data = {
+                'position':
+                    {
+                        'symbol': {
+                            'price': 123,
+                            'description': 'Описание позиции'},
+                        'symbol2': {
+                            'price': 123,
+                            'description': 'Описание позиции'}
+                    },
+                'position2':
+                    {
+                        'symbol': {
+                            'price': 123,
+                            'description': 'Описание позиции'},
+                        'symbol2': {
+                            'price': 123,
+                            'description': 'Описание позиции'}
+                    },
+
             }
-            description = QtGui.QStandardItem(str(0))
-            symbol = QtGui.QStandardItem(str(0))
-            position = QtGui.QStandardItem(str(0))
-            price = QtGui.QStandardItem(str(0))
-        else: # Считать из файла
-            description = QtGui.QStandardItem(str(0))
-            symbol = QtGui.QStandardItem(str(0))
-            position = QtGui.QStandardItem(str(0))
-            price = QtGui.QStandardItem(str(0))
-        lst = [
-            description, symbol, position, price
-        ]
-        self.sti.appendRow(lst)
-
-        if self.file_sett.check_is_nan():
-            self.file_sett.data = self.sett
             self.file_sett.writer_file()
-
+        for pos in self.file_sett.data:
+            for sym in self.file_sett.data[pos]:
+                position = QtGui.QStandardItem(str(pos))
+                symbol = QtGui.QStandardItem(str(sym))
+                price = QtGui.QStandardItem(str(
+                    self.file_sett.data[pos][sym]['price']
+                ))
+                description = QtGui.QStandardItem(str(
+                    self.file_sett.data[pos][sym]['description']
+                ))
+                lst = [
+                    position, symbol, price, description
+                ]
+                self.sti.appendRow(lst)
         self.sti.setHorizontalHeaderLabels(
-            ['Описание', 'Символ', 'Позиция', 'Цена']
+            ['Позиция', 'Символ', 'Цена', 'Описание']
         )
         self.tv.setModel(self.sti)
         return self.tv

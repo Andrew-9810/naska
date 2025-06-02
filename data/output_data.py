@@ -9,7 +9,7 @@ class ActionFile:
 
     def read_file(self):
         try:
-            with open(self.file, "r") as read_file:
+            with open(self.file, 'r', encoding='utf-8') as read_file:
                 self.data = json.load(read_file)
         except FileNotFoundError:
             if 'price' in str(self.file) or 'sett' in str(self.file):
@@ -19,8 +19,8 @@ class ActionFile:
                 self.read_file()
 
 
-    def writer_file(self):
-        with open(self.file, 'w') as outfile:
+    def writer_file(self, mode='w'):
+        with open(self.file, mode) as outfile:
             json.dump(self.data, outfile)
 
     def get_group_list(self)-> list:
@@ -57,6 +57,7 @@ class ActionFile:
     def get_team_dict(self)-> dict:
         """Получение словаря коллективов."""
         return self.data['races'][0]['organizations']
+
 
     def check_is_nan(self):
         """Проверка на пустоту. True -> Пустой."""
