@@ -1,0 +1,83 @@
+{# templates/report.html #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <title>REPORT</title>
+    <style>
+    table {
+        border-collapse: separate;
+        border-spacing: 0 0px;
+    }
+    th, td {
+        border: 1px solid black;
+        padding: 2px;
+        text-align: left;
+    }
+    @media print {
+        table {
+        border-collapse: separate;
+        border-spacing: 0 0px;
+        }
+        th, td {
+        border: 1px solid black;
+        padding: 1px;
+        text-align: left;
+        }
+        html, body {
+            height: 297mm;
+            width: 210mm;
+        }
+        @page {
+	        margin: 10mm 10mm 10mm 20mm;
+	        size: landscape;
+        }
+    }
+    </style>
+</head>
+<body>
+    <table>
+        <tr>
+            <th>Фамилия</th>
+            <th>Имя</th>
+            <th>ГР</th>
+            <th>Квал</th>
+            <th>Чип</th>
+            <th>Номер</th>
+            <th>Группа</th>
+            <th>Коллектив</th>
+            <th>ЧИП</th>
+            <th>КОМПАС</th>
+            <th>1день</th>
+            <th>2день</th>
+            <th>3день</th>
+            <th>Л.С</th>
+            <th>Карта</th>
+            <th>Нал</th>
+            <th>ДОЛГ</th>
+        </tr>
+        {% for person in context %}
+        <tr>
+            <td>{{ person.surname }}</td>
+            <td>{{ person.name }}</td>
+            <td>{{ person.year }}</td>
+            <td>{{ person.qual }}</td>
+            <td>{{ person.card_number }}</td>
+            <td>{{ person.bib }}</td>
+            <td>{{ person.group_id }}</td>
+            <td>{{ person.organization_id }}</td>
+            <td>{{ person.chip }}</td>
+            <td>{{ person.compas }}</td>
+            <td>{{ person.price_day1 }}</td>
+            <td>{{ person.price_day2 }}</td>
+            <td>{{ person.price_day3 }}</td>
+            <td>{{ person.bank }}</td>
+            <td>{{ person.bank_card }}</td>
+            <td>{{ person.cash }}</td>
+            <td>{{ person.credit }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

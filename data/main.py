@@ -1,9 +1,12 @@
 import sys
 from pathlib import Path
 
-from PySide6 import QtCore, QtGui, QtWidgets
+import PySide6.QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets, QtPrintSupport
 
 from data.output_data import ActionFile
+from data.report_html import print_html_team, print_html
+
 
 
 CMNT_CHARACTERS = 20  # Колличесто символов в комментари
@@ -88,6 +91,10 @@ class Person(CommonClass):
         self.sti.itemChanged.connect(self.cell_changed_person)
         self.tv.doubleClicked.connect(self.changing_dynamic_fields)
         self.file_price = file_price
+        self.html_person = {}
+
+    def printin(self):
+        print_html_team(self.html_person)
 
     def changing_dynamic_fields(self):
         """Изменение полей с выбором из списка."""
@@ -127,9 +134,9 @@ class Person(CommonClass):
             '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
             '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'
         ]
-        person_dict = {}
 
         for i in self.data_dict:
+            person_dict = {}
             try:
                 # Фильтрация Группа, Коллектив
                 if group_filter == 'all' and team_filter == 'all':
@@ -157,7 +164,7 @@ class Person(CommonClass):
                     )
                 else:
                     if (i['group_id'] == group_filter
-                        and i['organization_id'] == team_filter
+                            and i['organization_id'] == team_filter
                     ):
                         group = QtGui.QStandardItem(str(
                             self.group_list[group_filter])
@@ -213,18 +220,12 @@ class Person(CommonClass):
 
             for day in range(1, start_day + 1):
                 if person_dict[f'comment{day + step_comm_day}'].text() != '-':
-                    summ += price_day
                     data = price_day
+                    summ += price_day
                 else:
                     data = ' '
                 person_dict[f'price_day{day}'] = QtGui.QStandardItem(str(data))
 
-                """
-                Здесь цена за 1 день ориентируется на:
-                льготы,
-                цена коллектива
-                певая цена и т.д
-                """
             # Чип, Компас
             if chip:
                 chip_b = 200 # Берем из файла с чипами
@@ -250,7 +251,21 @@ class Person(CommonClass):
                 else:
                     summ_compas = ' '
                 person_dict['compas'] = QtGui.QStandardItem(str(summ_compas))
-            person_dict['summ'] = QtGui.QStandardItem(f'{summ}')
+
+            person_dict['bank'] = QtGui.QStandardItem(str(' '))
+            person_dict['bank_card'] = QtGui.QStandardItem(str(' '))
+            person_dict['cash'] = QtGui.QStandardItem(str(' '))
+            person_dict['credit'] = QtGui.QStandardItem(str(' '))
+            if person_dict['comment0'].text() == 'Л':  # Л/С
+                person_dict['bank'] = QtGui.QStandardItem(str(summ))
+            elif person_dict['comment0'].text() == 'К':  # Карта
+                person_dict['bank_card'] = QtGui.QStandardItem(str(summ))
+            elif person_dict['comment0'].text() == 'Н':  # Наличка
+                person_dict['cash'] = QtGui.QStandardItem(str(summ))
+            elif person_dict['comment0'].text() == 'П':  # Полная неоплата
+                pass
+            else:
+                person_dict['credit'] = QtGui.QStandardItem(str(summ))
 
             person = []
             for head in list_header[0:9]:
@@ -265,7 +280,19 @@ class Person(CommonClass):
                 person.append(person_dict['compas'])
             for day in range(1, start_day+1):
                 person.append(person_dict[f'price_day{day}'])
-            person.append(person_dict['summ'])
+
+            person.append(person_dict['bank'])
+            person.append(person_dict['bank_card'])
+            person.append(person_dict['cash'])
+            person.append(person_dict['credit'])
+
+            html_dict = {}
+            for html_key in person_dict:
+                x = person_dict[html_key].text()
+                html_dict[html_key] = x
+            self.html_person[person_dict['id'].text()] = html_dict
+
+
             self.sti.appendRow(person)
 
         # Заголовки Чип, Компас
@@ -275,7 +302,10 @@ class Person(CommonClass):
             headers.append('Компас')
         for day in range(start_day):
             headers.append(f'{day + 1}день')
-        headers.append('ИТОГО')
+        headers.append('Л/С')
+        headers.append('Карта')
+        headers.append('Нал.')
+        headers.append('Долг')
         self.sti.setHorizontalHeaderLabels(headers)
         self.tv.setModel(self.sti)
         # Сортировка по столбцу
@@ -372,6 +402,7 @@ class Group(CommonClass):
             self.file_price.writer_file()
 
 
+
 class Team(CommonClass):
     def __init__(self, file):
         super().__init__()
@@ -449,8 +480,8 @@ class MyWindow(QtWidgets.QMainWindow):
         super().__init__()
 
         self.day = 3
-        self.chip = False
-        self.compas = False
+        self.chip = True
+        self.compas = True
 
         self.file = ActionFile(f'{FILE}')
         self.file.read_file()
@@ -466,6 +497,9 @@ class MyWindow(QtWidgets.QMainWindow):
         self.file_sett.read_file()
 
         self.edit = 0  # 0 - не редактирование, 1 - редактирование
+
+        self.pr = self.menuBar().addMenu("Печать")
+        self.shortcut_print = QtGui.QShortcut(QtGui.QKeySequence('Ctrl+P'), self)
 
         self.centralwidget = QtWidgets.QWidget()
         self.setCentralWidget(self.centralwidget)
@@ -515,7 +549,10 @@ class MyWindow(QtWidgets.QMainWindow):
         self.tabWidget.setMovable(True)
         self.layout = QtWidgets.QGridLayout(self.centralwidget)
         self.layout.addWidget(self.tabWidget)
+        self.shortcut_print.activated.connect(self.person.printin)
         self.filter()
+
+
 
     def filter(self):
         """Фильтрация по Коллективу и Группе."""
@@ -593,6 +630,50 @@ class SelectFile(QtWidgets.QMainWindow):
         FILE = fname[0]
 
 
+class Pri(MyWindow):
+    def __init__(self):
+        super().__init__()
+        self.data_my = self.person.load_person()
+
+        printer = QtPrintSupport.QPrinter(
+            mode=QtPrintSupport.QPrinter.PrinterMode.HighResolution
+        )
+
+        # printer.setPageSize(QtGui.QPrinter.A4)
+        # printer.setOutputFormat(QtGui.QPrinter.PdfFormat)
+        printer.setOutputFormat(
+            QtPrintSupport.QPrinter.OutputFormat.PdfFormat
+        )
+        printer.setOutputFileName('output.pdf')
+
+        ps = QtGui.QPageSize(QtGui.QPageSize.PageSizeId.A4)
+        printer.setPageSize(ps)
+
+        printer.setPageOrientation(QtGui.QPageLayout.Orientation.Landscape)
+        printer.setResolution(100)  # Разрешение
+        painter = QtGui.QPainter(printer)
+
+        # page_size = printer.pageRect(QtPrintSupport.QPrinter.Unit.DevicePixel)
+        # page_width = int(page_size.width())
+        # page_heigth = int(page_size.height())
+        x = 100
+        y = 100
+        # self.data_my.render(painter, QtCore.QPoint(x, y))
+        pixmap = QtGui.QPixmap(self.data_my.size())
+
+        # PySide6.QtWidgets.QWidget.render(
+        #     self.data_my,
+        #     painter,
+        #     QtCore.QPoint(x, y),
+        #     QtGui.QRegion()
+        # )
+        self.data_my.render(
+            pixmap
+        )
+        painter.drawPixmap(x, y, pixmap)
+        painter.end()
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     app.setFont(QtGui.QFont('Times', 12, QtGui.QFont.Bold))
@@ -606,4 +687,6 @@ if __name__ == '__main__':
     win.setWindowTitle('Сбор стартового взноса')
     win.resize(1000, 800)
     win.show()
+    pri = Pri()
+
     sys.exit(app.exec_())
