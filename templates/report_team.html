@@ -43,7 +43,9 @@
     {% for team_dict in context %}
     {% for team, pers_data in team_dict.items() %}
     <div class="pb-before">
-    <h2>{{ team }}</h2><br>
+    <h2>{{ team }}</h2>
+        <br>
+        <h3>ВЗНОС: ххх | ДОЛГ: ххх | Арен.ЧИП: ххх | Арен.КОМПАС: ххх</h3>
         <table>
             <tr>
                 <th>Фамилия</th>
@@ -59,6 +61,7 @@
                 <th>1день</th>
                 <th>2день</th>
                 <th>3день</th>
+                <th>ВЗНОС</th>
                 <th>Л.С</th>
                 <th>Карта</th>
                 <th>Нал</th>
@@ -79,10 +82,11 @@
                 <td>{{ person.price_day1 }}</td>
                 <td>{{ person.price_day2 }}</td>
                 <td>{{ person.price_day3 }}</td>
+                <td><b>{{ person.perssumm }}</b</td>
                 <td>{{ person.bank }}</td>
                 <td>{{ person.bank_card }}</td>
                 <td>{{ person.cash }}</td>
-                <td>{{ person.credit }}</td>
+                <td><b>{{ person.credit }}</b></td>
             </tr>
             {% endfor %}
         </table>
